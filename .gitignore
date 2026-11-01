@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.DS_Store
+.env
+*.log
+data/fminside_staff.json
+data/staff_page_debug.html
+data/coach_photo_matches.json

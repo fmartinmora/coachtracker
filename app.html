@@ -1,0 +1,1927 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoachTracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f0f2f5;
+  --surface: #ffffff;
+  --surface-raised: #f8f9fb;
+  --surface-overlay: #eef0f4;
+  --card: #ffffff;
+  --card-hover: #f5f7fa;
+  --border: rgba(0,0,0,0.08);
+  --border-card: rgba(0,0,0,0.1);
+  --text-primary: #1a1d26;
+  --text-secondary: #5a6178;
+  --text-muted: #8b93a8;
+  --accent: #3b6ce7;
+  --accent-glow: rgba(59,108,231,0.12);
+  --coach-1: #3b6ce7;
+  --coach-2: #e06830;
+  --coach-3: #0fa968;
+  --coach-4: #d4a012;
+  --coach-5: #d4427a;
+}
+
+html { font-size: 14px; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+/* Top bar */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  backdrop-filter: blur(12px);
+}
+.comp-logo {
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.topbar h1 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+.topbar .controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-left: auto;
+}
+.topbar label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.topbar select {
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.topbar select:hover { border-color: rgba(255,255,255,0.15); }
+.topbar select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.search-wrap { position: relative; margin-left: 0.5rem; }
+.search-wrap input {
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px; padding: 0.4rem 0.6rem; font-size: 0.82rem; font-family: inherit;
+  color: var(--text-primary); width: 160px; transition: border-color 0.2s, width 0.2s;
+}
+.search-wrap input:focus { outline: none; border-color: var(--accent); width: 220px; }
+.search-wrap input::placeholder { color: var(--text-muted); }
+.search-results {
+  display: none; position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px;
+  background: var(--card); border: 1px solid var(--border-card); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25); z-index: 200; max-height: 300px; overflow-y: auto;
+  min-width: 260px;
+}
+.search-results.open { display: block; }
+.search-item {
+  padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);
+  border-bottom: 1px solid var(--border-card); transition: background 0.1s;
+}
+.search-item:last-child { border-bottom: none; }
+.search-item:hover { background: var(--card-hover); }
+.search-empty { padding: 0.5rem 0.75rem; font-size: 0.8rem; color: var(--text-muted); }
+
+/* Summary bar */
+.summary-bar {
+  display: flex;
+  gap: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  align-items: center;
+}
+.stat-pill {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+.stat-pill .stat-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+.stat-pill .stat-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.zone-legend {
+  display: flex;
+  gap: 0.85rem;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.zone-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.zone-swatch {
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+/* Loading */
+.loading-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem;
+  gap: 1rem;
+}
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { color: var(--text-muted); font-size: 0.85rem; }
+
+/* Chart grid */
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 300px));
+  gap: 12px;
+  padding: 16px;
+  justify-content: center;
+  background: var(--bg);
+}
+
+.chart-card {
+  background: var(--card);
+  padding: 14px 16px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  border-radius: 12px;
+  border: 1px solid var(--border-card);
+}
+.chart-card:hover {
+  background: var(--card-hover);
+  border-color: rgba(255,255,255,0.12);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+.chart-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 12px; }
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+.chart-badge {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+}
+.chart-team-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+  letter-spacing: -0.01em;
+}
+.chart-pct {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.06);
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+.chart-quick-stats {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.chart-quick-stats .qs-w { color: #0fa968; }
+.chart-quick-stats .qs-d { color: var(--text-muted); }
+.chart-quick-stats .qs-l { color: #d94040; }
+.chart-quick-stats .qs-sep { color: var(--border-card); }
+.chart-quick-stats .qs-pts { color: var(--text-primary); font-weight: 600; }
+.chart-quick-stats .qs-pct { color: var(--text-muted); }
+.chart-form-line {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 0.75rem;
+  margin-bottom: 0.25rem;
+}
+.form-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+  margin-right: 4px;
+}
+.form-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #fff;
+}
+.form-dot.form-w { background: #0fa968; }
+.form-dot.form-d { background: #aab0c0; }
+.form-dot.form-l { background: #d94040; }
+.form-trend {
+  font-size: 0.7rem;
+  margin-left: 4px;
+  font-weight: 700;
+}
+.form-trend.trend-up { color: #0fa968; }
+.form-trend.trend-down { color: #d94040; }
+.form-trend.trend-flat { color: var(--text-muted); }
+.form-dot-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: #fff;
+  margin-right: 1px;
+}
+.form-dot-sm.form-w { background: #0fa968; }
+.form-dot-sm.form-d { background: #aab0c0; }
+.form-dot-sm.form-l { background: #d94040; }
+.form-cell { white-space: nowrap; }
+.chart-coaches {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+  line-height: 1.6;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+}
+.chart-coach-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.coach-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 1px;
+  vertical-align: middle;
+  box-shadow: 0 0 3px rgba(0,0,0,0.15);
+}
+.chart-canvas-wrap {
+  position: relative;
+  height: 180px;
+}
+.chart-canvas-wrap canvas { width: 100% !important; height: 100% !important; }
+
+/* Expanded overlay */
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+.modal-backdrop.open { display: flex; }
+.modal-content {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-card);
+  border-radius: 16px;
+  padding: 1.75rem;
+  width: 100%;
+  max-width: 760px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.15);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+.modal-header h2 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; }
+.modal-close {
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-card);
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.3rem 0.6rem;
+  line-height: 1;
+  border-radius: 8px;
+  transition: all 0.15s;
+}
+.modal-close:hover { color: var(--text-primary); background: rgba(255,255,255,0.1); }
+.modal-chart-wrap { height: 360px; position: relative; }
+.modal-chart-wrap canvas { width: 100% !important; height: 100% !important; }
+.modal-coaches-list {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.modal-coach-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--surface-overlay);
+  padding: 0.3rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-card);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.modal-coach-tag:hover { border-color: var(--accent); color: var(--text-primary); }
+.modal-coach-tag.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.modal-coach-tag.active .coach-dot { box-shadow: 0 0 0 2px #fff; }
+
+/* Coach changes table */
+.changes-section {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.changes-section h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  letter-spacing: -0.01em;
+}
+.changes-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.82rem;
+  background: var(--card);
+  border-radius: 12px;
+  border: 1px solid var(--border-card);
+  overflow: visible;
+}
+.changes-table tr:first-child th:first-child { border-top-left-radius: 12px; }
+.changes-table tr:first-child th:last-child { border-top-right-radius: 12px; }
+.changes-table tr:last-child td:first-child { border-bottom-left-radius: 12px; }
+.changes-table tr:last-child td:last-child { border-bottom-right-radius: 12px; }
+.changes-table th {
+  text-align: left;
+  padding: 0.65rem 1rem;
+  background: var(--surface-overlay);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.changes-table td {
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+  vertical-align: top;
+}
+.changes-table tr:hover td { background: var(--card-hover); }
+.changes-table .coach-stint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-right: 0.75rem;
+  white-space: nowrap;
+}
+.changes-count {
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.ranking-table td { vertical-align: middle; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+.ranking-table th.sortable { cursor: pointer; user-select: none; position: relative; padding-right: 1.2em; }
+.ranking-table th.sortable:hover { color: var(--text-primary); }
+.ranking-table th.sortable::after { content: '⇅'; position: absolute; right: 0.2em; opacity: 0.3; font-size: 0.7em; }
+.ranking-table th.sortable.asc::after { content: '▲'; opacity: 0.8; }
+.ranking-table th.sortable.desc::after { content: '▼'; opacity: 0.8; }
+.ranking-table tr[style*="cursor"] td { transition: background 0.15s; }
+.ranking-table tr:hover td { background: var(--card-hover); }
+.ranking-table td:nth-child(1) { font-weight: 600; color: var(--text-muted); width: 2rem; }
+.ranking-table td:nth-child(8),
+.ranking-table td:nth-child(9) { font-weight: 600; }
+.sackings-table .pct-danger { color: #d94040; font-weight: 600; }
+.sackings-table .pct-ok { color: #0fa968; font-weight: 600; }
+.team-badge-inline { width: 18px; height: 18px; object-fit: contain; vertical-align: middle; margin-right: 4px; }
+.team-link { cursor: pointer; }
+.team-link:hover { text-decoration: underline; }
+.team-stint-row:hover { background: var(--hover-bg, rgba(255,255,255,0.05)); }
+.min-filter { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; font-size: 0.8rem; color: var(--text-muted); }
+.min-filter input { width: 50px; padding: 0.2rem 0.4rem; border: 1px solid var(--border-card); border-radius: 6px; font-size: 0.8rem; font-family: inherit; }
+
+/* Coach stats panel */
+.coach-stats-panel {
+  margin-top: 1rem;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.coach-stats-panel .stats-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.coach-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+}
+.coach-stat-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  text-align: center;
+}
+.coach-stat-item .stat-val {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+.coach-stat-item .stat-lbl {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+.coach-stat-item.highlight .stat-val { color: var(--accent); }
+
+.coach-history {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+.history-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.history-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.25rem 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+.history-table td {
+  padding: 0.3rem 0.4rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.history-table tr.current-stint td {
+  background: var(--accent-glow);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.history-team {
+  white-space: nowrap;
+}
+
+/* Empty state */
+.empty-state {
+  padding: 4rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<header class="topbar">
+  <img id="comp-logo" class="comp-logo" src="" alt="" style="display:none">
+  <h1>CoachTracker</h1>
+  <div class="controls">
+    <label for="sel-competition">Competition</label>
+    <select id="sel-competition"></select>
+    <label for="sel-season">Season</label>
+    <select id="sel-season"></select>
+    <div class="search-wrap">
+      <input type="text" id="coach-search" placeholder="Search coach..." autocomplete="off">
+      <div class="search-results" id="coach-search-results"></div>
+    </div>
+    <div class="search-wrap">
+      <input type="text" id="team-search" placeholder="Search team..." autocomplete="off">
+      <div class="search-results" id="team-search-results"></div>
+    </div>
+  </div>
+</header>
+
+<!-- Summary bar -->
+<div class="summary-bar" id="summary-bar" style="display:none">
+  <div class="stat-pill">
+    <span class="stat-label">Teams</span>
+    <span class="stat-value" id="stat-teams">0</span>
+  </div>
+  <div class="stat-pill">
+    <span class="stat-label">Sackings</span>
+    <span class="stat-value" id="stat-changes">0</span>
+  </div>
+  <div class="stat-pill">
+    <span class="stat-label">% L&iacute;der</span>
+    <span class="stat-value" id="stat-leader-pct">0</span>
+  </div>
+  <div class="stat-pill">
+    <span class="stat-label">League avg</span>
+    <span class="stat-value" id="stat-avg-pct">0</span>
+  </div>
+  <div class="stat-pill">
+    <span class="stat-label">Avg sacking %</span>
+    <span class="stat-value" id="stat-avg-sack">-</span>
+  </div>
+  <div class="stat-pill">
+    <span class="stat-label">Best streak</span>
+    <span class="stat-value" id="stat-best-streak">-</span>
+  </div>
+  <div class="stat-pill">
+    <span class="stat-label">M&aacute;s inestable</span>
+    <span class="stat-value" id="stat-most-unstable">-</span>
+  </div>
+  <div class="zone-legend" id="zone-legend"></div>
+</div>
+
+<!-- Main content -->
+<main id="main-content">
+  <div class="empty-state">Select competition and season</div>
+</main>
+
+<!-- Coach ranking table -->
+<section class="changes-section" id="ranking-section" style="display:none">
+  <h2>Coach Ranking</h2>
+  <table class="changes-table ranking-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Coach</th>
+        <th>Team</th>
+        <th class="sortable" data-sort="matches">MP</th>
+        <th class="sortable" data-sort="wins">W</th>
+        <th class="sortable" data-sort="draws">D</th>
+        <th class="sortable" data-sort="losses">L</th>
+        <th class="sortable" data-sort="pts">Pts</th>
+        <th class="sortable active" data-sort="pct">%</th>
+        <th>Form</th>
+      </tr>
+    </thead>
+    <tbody id="ranking-tbody"></tbody>
+  </table>
+</section>
+
+<!-- Sackings / dismissals table -->
+<section class="changes-section" id="sackings-section" style="display:none">
+  <h2>Sackings</h2>
+  <table class="changes-table sackings-table">
+    <thead>
+      <tr>
+        <th>Team</th>
+        <th>Sacked coach</th>
+        <th>Matchday</th>
+        <th>% at exit</th>
+        <th>Replacement</th>
+        <th>% final</th>
+      </tr>
+    </thead>
+    <tbody id="sackings-tbody"></tbody>
+  </table>
+</section>
+
+<!-- Expanded chart modal -->
+<div class="modal-backdrop" id="modal" role="dialog" aria-modal="true" aria-label="Team detail">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="modal-title"></h2>
+      <button class="modal-close" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-chart-wrap">
+      <canvas id="modal-canvas"></canvas>
+    </div>
+    <div class="modal-coaches-list" id="modal-coaches"></div>
+    <div class="coach-stats-panel" id="coach-stats-panel" style="display:none"></div>
+  </div>
+</div>
+
+<!-- Team history modal -->
+<div class="modal-backdrop" id="team-modal" role="dialog" aria-modal="true" aria-label="Team history">
+  <div class="modal-content" style="max-width:650px">
+    <div class="modal-header">
+      <h2 id="team-modal-title"></h2>
+      <button class="modal-close" aria-label="Cerrar" onclick="closeTeamModal()">&times;</button>
+    </div>
+    <div id="team-modal-body" style="padding:0 1rem 1rem"></div>
+  </div>
+</div>
+
+<!-- Coach history modal -->
+<div class="modal-backdrop" id="coach-modal" role="dialog" aria-modal="true" aria-label="Coach history">
+  <div class="modal-content" style="max-width:600px">
+    <div class="modal-header">
+      <h2 id="coach-modal-title"></h2>
+      <button class="modal-close" aria-label="Cerrar" onclick="closeCoachModal()">&times;</button>
+    </div>
+    <div id="coach-modal-body" style="padding:0 1rem 1rem"></div>
+  </div>
+</div>
+
+<script>
+const COACH_COLORS = ['#3b6ce7', '#e06830', '#0fa968', '#d4a012', '#d4427a', '#7c4ce0', '#0fa9a0'];
+const ZONE_DEFS = [
+  { key: 'champion',         label: 'Champion',            color: '#d4a012' },
+  { key: 'champions_league', label: 'Champions League',   color: '#3b6ce7' },
+  { key: 'europa_league',    label: 'Europa League',      color: '#e06830' },
+  { key: 'conference_league',label: 'Conference League',  color: '#0fa968' },
+  { key: 'promotion',        label: 'Promotion',          color: '#3b6ce7' },
+  { key: 'promotion_playoff',label: 'Promotion Playoff',  color: '#0fa968' },
+  { key: 'libertadores',     label: 'Copa Libertadores',  color: '#3b6ce7' },
+  { key: 'sudamericana',     label: 'Conmebol Sudamericana', color: '#e06830' },
+  { key: 'afc_cl',           label: 'AFC CL 2',           color: '#3b6ce7' },
+  { key: 'playoff_rel',      label: 'Relegation Playoff', color: '#e8a0b0' },
+  { key: 'danger',           label: 'Danger Zone',        color: '#d94040', fixed: 33.33 },
+  { key: 'relegation',       label: 'Relegation',         color: '#d94040' },
+];
+
+const surface = '#ffffff';
+const gridColor = 'rgba(0,0,0,0.06)';
+
+function teamBadgeUrl(teamId) {
+  return `https://omo.akamai.opta.net/image.php?h=www.scoresway.com&sport=football&entity=team&description=badges&dimensions=150&id=${teamId}`;
+}
+
+// Each league defines zones as [fromPos, toPos, colorKey]
+// colorKey: 'champion','cl','el','ecl','promo','promo_po','liberta','sudamer','afc','po_rel','rel'
+const ZONE_COLORS = {
+  champion:  '#d4a012',
+  cl:        '#3b6ce7',
+  el:        '#e06830',
+  ecl:       '#0fa968',
+  promo:     '#3b6ce7',
+  promo_po:  '#0fa968',
+  liberta:   '#3b6ce7',
+  sudamer:   '#e06830',
+  afc:       '#3b6ce7',
+  po_rel:    '#e8a0b0',
+  rel:       '#d94040',
+  playoff:   '#0fa968',
+};
+
+const LEAGUE_ZONES = {
+  'La Liga':         [[1,1,'champion'],[2,4,'cl'],[5,5,'el'],[6,6,'ecl'],[18,20,'rel']],
+  'Premier League':  [[1,1,'champion'],[2,4,'cl'],[5,5,'el'],[18,20,'rel']],
+  'Serie A':         [[1,1,'champion'],[2,4,'cl'],[5,5,'el'],[6,6,'ecl'],[18,20,'rel']],
+  'Ligue 1':         [[1,1,'champion'],[2,4,'cl'],[5,5,'el'],[6,6,'ecl'],[16,16,'po_rel'],[17,18,'rel']],
+  'Bundesliga':      [[1,1,'champion'],[2,4,'cl'],[5,5,'el'],[6,6,'ecl'],[16,16,'po_rel'],[17,18,'rel']],
+  '2. Bundesliga':   [[1,2,'promo'],[3,3,'promo_po'],[16,16,'po_rel'],[17,18,'rel']],
+  'Brasileirão':     [[1,1,'champion'],[2,5,'liberta'],[6,11,'sudamer'],[17,20,'rel']],
+  'Championship':    [[1,2,'promo'],[3,8,'promo_po'],[22,24,'rel']],
+  'Chinese Super League': [[1,1,'champion'],[2,2,'afc'],[15,16,'rel']],
+  'Eredivisie':      [[1,1,'champion'],[2,2,'cl'],[3,3,'el'],[4,7,'playoff'],[16,16,'po_rel'],[17,18,'rel']],
+  'LaLiga 2':        [[1,1,'champion'],[2,2,'promo'],[3,6,'promo_po'],[19,22,'rel']],
+  'Liga Profesional Argentina': [[1,1,'champion']],
+  'Ligue 2':         [[1,1,'champion'],[2,2,'promo'],[3,5,'promo_po'],[16,16,'po_rel'],[17,18,'rel']],
+  'Primeira Liga':   [[1,1,'champion'],[2,3,'cl'],[4,4,'el'],[5,5,'ecl'],[16,16,'po_rel'],[17,18,'rel']],
+  'Pro League':      [[1,1,'champion'],[2,2,'cl'],[3,3,'el'],[4,4,'ecl'],[17,18,'rel']],
+  'Serie B':         [[1,1,'champion'],[2,2,'promo'],[3,4,'promo_po'],[5,8,'promo_po'],[16,17,'po_rel'],[18,20,'rel']],
+};
+
+function getZoneColor(position, comp) {
+  const zones = LEAGUE_ZONES[comp] || LEAGUE_ZONES['La Liga'];
+  for (const [from, to, key] of zones) {
+    if (position >= from && position <= to) return ZONE_COLORS[key];
+  }
+  return null;
+}
+
+const COMP_LOGOS = {
+  'La Liga': '/static/logos/la_liga.png',
+  'Premier League': '/static/logos/premier_league.png',
+  'Bundesliga': '/static/logos/bundesliga.png',
+  'Serie A': '/static/logos/serie_a.png',
+  'Ligue 1': '/static/logos/ligue_1.png',
+  'Championship': '/static/logos/championship.png',
+  'LaLiga 2': '/static/logos/laliga_2.png',
+  'Ligue 2': '/static/logos/ligue_2.png',
+  '2. Bundesliga': '/static/logos/2_bundesliga.png',
+  'Serie B': '/static/logos/serie_b.png',
+  'Primeira Liga': '/static/logos/primeira_liga.png',
+  'Eredivisie': '/static/logos/eredivisie.png',
+  'Brasileirão': '/static/logos/brasileirao.png',
+  'Liga Profesional Argentina': '/static/logos/liga_argentina.png',
+  'Pro League': '/static/logos/pro_league.png',
+  'Chinese Super League': '/static/logos/chinese_super_league.png',
+};
+
+function updateCompLogo(comp) {
+  const img = document.getElementById('comp-logo');
+  const src = COMP_LOGOS[comp];
+  if (src) { img.src = src; img.alt = comp; img.style.display = ''; }
+  else { img.style.display = 'none'; }
+}
+const tickColor = '#8b93a8';
+
+let allCharts = [];
+let modalChart = null;
+let coachPhotos = {}; // coach_id -> Image object
+let coachPhotoUrls = {}; // coach_id -> url string
+const COACH_PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Crect width='80' height='80' rx='40' fill='%23374151'/%3E%3Ccircle cx='40' cy='30' r='14' fill='%236b7280'/%3E%3Cellipse cx='40' cy='68' rx='24' ry='18' fill='%236b7280'/%3E%3C/svg%3E";
+
+async function loadCoachPhotos() {
+  try {
+    coachPhotoUrls = await api('/api/coach_photos');
+    const promises = Object.entries(coachPhotoUrls).map(([id, url]) => {
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => { coachPhotos[id] = img; resolve(); };
+        img.onerror = () => resolve();
+        img.src = url;
+      });
+    });
+    await Promise.all(promises);
+  } catch (e) { /* no photos available */ }
+}
+
+// ---- API helpers ----
+async function api(path) {
+  const r = await fetch(path);
+  if (!r.ok) throw new Error(`API error: ${r.status}`);
+  return r.json();
+}
+
+// ---- Init ----
+async function init() {
+  await loadCoachPhotos();
+  const comps = await api('/api/competitions');
+  const sel = document.getElementById('sel-competition');
+  sel.innerHTML = '';
+  const TOP5 = ['La Liga', 'Premier League', 'Bundesliga', 'Serie A', 'Ligue 1'];
+  const top = TOP5.filter(c => comps.includes(c));
+  const rest = comps.filter(c => !TOP5.includes(c)).sort();
+  [...top, ...rest].forEach(c => {
+    const o = document.createElement('option');
+    o.value = c;
+    o.textContent = c;
+    sel.appendChild(o);
+  });
+  sel.addEventListener('change', onCompetitionChange);
+  document.getElementById('sel-season').addEventListener('change', onSeasonChange);
+
+  // Modal close
+  const modal = document.getElementById('modal');
+  modal.querySelector('.modal-close').addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // Auto-select La Liga by default, or first available
+  if (comps.length) {
+    sel.value = top.length ? top[0] : comps[0];
+    sel.dispatchEvent(new Event('change'));
+  }
+}
+
+async function onCompetitionChange() {
+  const comp = document.getElementById('sel-competition').value;
+  updateCompLogo(comp);
+  const sel = document.getElementById('sel-season');
+  sel.innerHTML = '';
+  if (!comp) return;
+  const seasons = await api(`/api/seasons?competition=${encodeURIComponent(comp)}`);
+  seasons.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s;
+    o.textContent = s;
+    sel.appendChild(o);
+  });
+  if (seasons.length) {
+    sel.value = seasons[0];
+    sel.dispatchEvent(new Event('change'));
+  }
+}
+
+async function onSeasonChange() {
+  const comp = document.getElementById('sel-competition').value;
+  const season = document.getElementById('sel-season').value;
+  if (!comp || !season) return;
+
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<div class="loading-overlay"><div class="spinner"></div><div class="loading-text">Loading data...</div></div>';
+  document.getElementById('summary-bar').style.display = 'none';
+  document.getElementById('ranking-section').style.display = 'none';
+  document.getElementById('sackings-section').style.display = 'none';
+
+  try {
+    const [progression, zones, coachChanges] = await Promise.all([
+      api(`/api/progression?competition=${encodeURIComponent(comp)}&season=${encodeURIComponent(season)}`),
+      api(`/api/zones?competition=${encodeURIComponent(comp)}&season=${encodeURIComponent(season)}`),
+      api(`/api/coach_changes?competition=${encodeURIComponent(comp)}&season=${encodeURIComponent(season)}`),
+    ]);
+    renderAll(progression, zones, coachChanges);
+  } catch (err) {
+    main.innerHTML = `<div class="empty-state">Error al cargar: ${err.message}</div>`;
+  }
+}
+
+// ---- Rendering ----
+function renderAll(progression, zones, coachChanges) {
+  // Destroy old charts
+  allCharts.forEach(c => c.destroy());
+  allCharts = [];
+
+  // Group by team
+  const teamMap = new Map();
+  progression.forEach(r => {
+    if (!teamMap.has(r.team_name)) teamMap.set(r.team_name, []);
+    teamMap.get(r.team_name).push(r);
+  });
+
+  // Sort by final points_pct descending
+  const teams = [...teamMap.entries()]
+    .map(([name, matches]) => {
+      // Total season points (sum of all match results, not per-coach pct)
+      let totalPts = 0;
+      matches.forEach(m => {
+        if (m.result === 'W') totalPts += 3;
+        else if (m.result === 'D') totalPts += 1;
+      });
+      const totalPct = matches.length > 0 ? Math.round((totalPts / (matches.length * 3)) * 10000) / 100 : 0;
+      const finalPct = matches[matches.length - 1].points_pct;
+      let gf = 0, ga = 0;
+      matches.forEach(m => { gf += m.goals_for || 0; ga += m.goals_against || 0; });
+      return { name, matches, totalPts, totalPct, finalPct, teamId: matches[0].team_id, gd: gf - ga, gf };
+    })
+    .sort((a, b) => b.totalPts - a.totalPts || b.gd - a.gd || b.gf - a.gf);
+
+  // Summary
+  const totalChanges = coachChanges.reduce((s, t) => s + Math.max(0, t.total_coaches - 1), 0);
+  document.getElementById('stat-teams').textContent = teams.length;
+  document.getElementById('stat-changes').textContent = totalChanges;
+
+  // Leader pct
+  const leaderPct = teams.length > 0 ? teams[0].totalPct : 0;
+  document.getElementById('stat-leader-pct').textContent = leaderPct + '%';
+
+  // League average pct
+  const avgPct = teams.length > 0 ? Math.round(teams.reduce((s, t) => s + t.totalPct, 0) / teams.length * 100) / 100 : 0;
+  document.getElementById('stat-avg-pct').textContent = avgPct + '%';
+
+  // Average sacking pct
+  const sackPcts = [];
+  coachChanges.filter(t => t.total_coaches > 1).forEach(t => {
+    for (let i = 0; i < t.coaches.length - 1; i++) sackPcts.push(t.coaches[i].points_pct);
+  });
+  document.getElementById('stat-avg-sack').textContent = sackPcts.length > 0
+    ? Math.round(sackPcts.reduce((a, b) => a + b, 0) / sackPcts.length * 100) / 100 + '%'
+    : '-';
+
+  // Best win streak
+  let bestStreak = { coach: '-', count: 0 };
+  const coachResults = new Map();
+  progression.forEach(r => {
+    const key = `${r.coach_id}__${r.team_id}`;
+    if (!coachResults.has(key)) coachResults.set(key, { name: r.coach_name, results: [] });
+    coachResults.get(key).results.push(r.result);
+  });
+  coachResults.forEach(c => {
+    let cur = 0, best = 0;
+    c.results.forEach(r => { if (r === 'W') { cur++; best = Math.max(best, cur); } else cur = 0; });
+    if (best > bestStreak.count) bestStreak = { coach: c.name, count: best };
+  });
+  document.getElementById('stat-best-streak').textContent = bestStreak.count > 0 ? `${bestStreak.coach} (${bestStreak.count}V)` : '-';
+
+  // Most unstable team
+  const mostUnstable = coachChanges.length > 0 ? coachChanges.reduce((a, b) => a.total_coaches > b.total_coaches ? a : b) : null;
+  document.getElementById('stat-most-unstable').textContent = mostUnstable && mostUnstable.total_coaches > 1
+    ? `${mostUnstable.team_name} (${mostUnstable.total_coaches})`
+    : '-';
+
+  renderZoneLegend(zones);
+  document.getElementById('summary-bar').style.display = 'flex';
+
+  // Compute league average pct per matchday
+  const maxMd = Math.max(...progression.map(r => r.matchday));
+  const leagueAvg = [];
+  for (let md = 1; md <= maxMd; md++) {
+    const mdRows = progression.filter(r => r.matchday === md);
+    if (mdRows.length === 0) { leagueAvg.push(null); continue; }
+    // For each team at this matchday, compute their cumulative pct from results up to this point
+    const pcts = [];
+    for (const team of teamMap.values()) {
+      const row = team.find(r => r.matchday === md);
+      if (!row) continue;
+      // Cumulative team pct (not per-coach)
+      const teamRows = team.filter(r => r.matchday <= md);
+      let pts = 0;
+      teamRows.forEach(r => { if (r.result === 'W') pts += 3; else if (r.result === 'D') pts += 1; });
+      pcts.push((pts / (teamRows.length * 3)) * 100);
+    }
+    leagueAvg.push(pcts.length > 0 ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length * 100) / 100 : null);
+  }
+
+  // Grid
+  const main = document.getElementById('main-content');
+  main.innerHTML = '';
+  const grid = document.createElement('div');
+  grid.className = 'chart-grid';
+  main.appendChild(grid);
+
+  teams.forEach((team, idx) => {
+    team.position = idx + 1;
+    const card = createTeamCard(team, zones, leagueAvg);
+    grid.appendChild(card);
+  });
+
+  // Coach ranking table
+  renderCoachRanking(progression);
+
+  // Changes table (sackings view)
+  renderSackings(coachChanges, progression);
+}
+
+const ZONE_KEY_LABELS = {
+  champion: 'Champion', cl: 'Champions League', el: 'Europa League', ecl: 'Conference League',
+  promo: 'Promotion', promo_po: 'Promotion Playoff', liberta: 'Copa Libertadores',
+  sudamer: 'Conmebol Sudamericana', afc: 'AFC CL 2', playoff: 'Playoff',
+  po_rel: 'Relegation Playoff', rel: 'Relegation',
+};
+
+function renderZoneLegend(zones) {
+  const el = document.getElementById('zone-legend');
+  el.innerHTML = '';
+  const comp = document.getElementById('sel-competition').value;
+  const leagueZones = LEAGUE_ZONES[comp] || LEAGUE_ZONES['La Liga'];
+
+  // Deduplicate zone keys preserving order
+  const seen = new Set();
+  const uniqueZones = [];
+  for (const [from, to, key] of leagueZones) {
+    if (!seen.has(key)) { seen.add(key); uniqueZones.push(key); }
+  }
+
+  uniqueZones.forEach(key => {
+    const item = document.createElement('div');
+    item.className = 'zone-item';
+    const swatch = document.createElement('span');
+    swatch.className = 'zone-swatch';
+    swatch.style.background = ZONE_COLORS[key];
+    item.appendChild(swatch);
+    item.appendChild(document.createTextNode(ZONE_KEY_LABELS[key] || key));
+    el.appendChild(item);
+  });
+
+  // Danger zone line (always show)
+  if (zones.danger) {
+    const item = document.createElement('div');
+    item.className = 'zone-item';
+    const swatch = document.createElement('span');
+    swatch.className = 'zone-swatch';
+    swatch.style.background = '#d94040';
+    swatch.style.height = '6px';
+    item.appendChild(swatch);
+    item.appendChild(document.createTextNode(`Danger Zone: ${zones.danger}%`));
+    el.appendChild(item);
+  }
+}
+
+function getCoachStints(matches) {
+  const stints = [];
+  let current = null;
+  matches.forEach((m, i) => {
+    if (m.coach_name !== current) {
+      current = m.coach_name;
+      stints.push({ name: current, startIdx: i, endIdx: i });
+    } else {
+      stints[stints.length - 1].endIdx = i;
+    }
+  });
+  return stints;
+}
+
+function createTeamCard(team, zones, leagueAvg) {
+  const card = document.createElement('div');
+  card.className = 'chart-card';
+  card.tabIndex = 0;
+  card.setAttribute('role', 'button');
+  card.setAttribute('aria-label', `Ver detalle de ${team.name}`);
+
+  // Zone border
+  const comp = document.getElementById('sel-competition').value;
+  const zoneColor = getZoneColor(team.position, comp);
+  if (zoneColor) {
+    card.style.borderLeft = `2px solid ${zoneColor}`;
+    card.style.borderTop = `2px solid ${zoneColor}`;
+  }
+
+  // Header with badge
+  const header = document.createElement('div');
+  header.className = 'chart-header';
+  const badge = document.createElement('img');
+  badge.className = 'chart-badge';
+  badge.src = teamBadgeUrl(team.teamId);
+  badge.alt = team.name;
+  badge.loading = 'lazy';
+  badge.onerror = function() { this.style.display = 'none'; };
+  badge.style.cursor = 'pointer';
+  badge.addEventListener('click', (e) => { e.stopPropagation(); openTeamModal(team.teamId, team.name); });
+  const nameEl = document.createElement('span');
+  nameEl.className = 'chart-team-name';
+  nameEl.textContent = `${team.position}. ${team.name}`;
+  nameEl.style.cursor = 'pointer';
+  nameEl.addEventListener('click', (e) => { e.stopPropagation(); openTeamModal(team.teamId, team.name); });
+  const pctEl = document.createElement('span');
+  pctEl.className = 'chart-pct';
+  pctEl.textContent = `${team.totalPts} pts`;
+  header.appendChild(badge);
+  header.appendChild(nameEl);
+  header.appendChild(pctEl);
+  card.appendChild(header);
+
+  // Quick stats line
+  const statsLine = document.createElement('div');
+  statsLine.className = 'chart-quick-stats';
+  const w = team.matches.filter(m => m.result === 'W').length;
+  const d = team.matches.filter(m => m.result === 'D').length;
+  const l = team.matches.filter(m => m.result === 'L').length;
+  // Last 5 results + trend
+  const last5 = team.matches.slice(-5);
+  const formDots = last5.map(m => {
+    const cls = m.result === 'W' ? 'form-w' : m.result === 'D' ? 'form-d' : 'form-l';
+    return `<span class="form-dot ${cls}" title="${m.result === 'W' ? 'Win' : m.result === 'D' ? 'Draw' : 'Loss'}">${m.result}</span>`;
+  }).join('');
+
+  // Trend: compare pct of last 5 vs previous 5
+  const last5pts = last5.reduce((s, m) => s + (m.result === 'W' ? 3 : m.result === 'D' ? 1 : 0), 0);
+  const prev5 = team.matches.slice(-10, -5);
+  const prev5pts = prev5.length > 0 ? prev5.reduce((s, m) => s + (m.result === 'W' ? 3 : m.result === 'D' ? 1 : 0), 0) : last5pts;
+  const trend = last5pts > prev5pts ? 'trend-up' : last5pts < prev5pts ? 'trend-down' : 'trend-flat';
+  const trendIcon = trend === 'trend-up' ? '▲' : trend === 'trend-down' ? '▼' : '▸';
+
+  statsLine.innerHTML = `<span class="qs-w">${w}W</span> <span class="qs-d">${d}D</span> <span class="qs-l">${l}L</span> <span class="qs-sep">·</span> <span class="qs-pts">${team.totalPts} pts</span> <span class="qs-pct">(${team.totalPct}%)</span>`;
+  card.appendChild(statsLine);
+
+  // Form line
+  const formLine = document.createElement('div');
+  formLine.className = 'chart-form-line';
+  formLine.innerHTML = `<span class="form-label">Form</span>${formDots}<span class="form-trend ${trend}">${trendIcon}</span>`;
+  card.appendChild(formLine);
+
+  // Canvas
+  const wrap = document.createElement('div');
+  wrap.className = 'chart-canvas-wrap';
+  const canvas = document.createElement('canvas');
+  wrap.appendChild(canvas);
+  card.appendChild(wrap);
+
+  // Coach labels — each as its own flex item so they wrap properly
+  const stints = getCoachStints(team.matches);
+  const coachLine = document.createElement('div');
+  coachLine.className = 'chart-coaches';
+  stints.forEach((s, i) => {
+    const entry = document.createElement('span');
+    entry.className = 'chart-coach-entry';
+    const dot = document.createElement('span');
+    dot.className = 'coach-dot';
+    dot.style.background = COACH_COLORS[Math.min(i, COACH_COLORS.length - 1)];
+    entry.appendChild(dot);
+    const lastName = s.name ? s.name.split(' ').pop() : '?';
+    entry.appendChild(document.createTextNode(lastName));
+    coachLine.appendChild(entry);
+  });
+  card.appendChild(coachLine);
+
+  // Create chart
+  const chart = buildChart(canvas, team, zones, false, leagueAvg);
+  allCharts.push(chart);
+
+  // Click to expand
+  card.addEventListener('click', () => openModal(team, zones, leagueAvg));
+  card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(team, zones, leagueAvg); } });
+
+  return card;
+}
+
+function buildChart(canvas, team, zones, isLarge, leagueAvg) {
+  const matches = team.matches;
+  const stints = getCoachStints(matches);
+  const labels = matches.map(m => m.matchday);
+
+  const datasets = [];
+
+  // Coach segments: each stint is its own dataset, NO overlap — clean break on coach change
+  const sackColor = '#d94040';
+  const photoSize = isLarge ? 24 : 16;
+  stints.forEach((stint, si) => {
+    const data = new Array(matches.length).fill(null);
+    for (let i = stint.startIdx; i <= stint.endIdx; i++) {
+      data[i] = matches[i].points_pct;
+    }
+
+    const color = COACH_COLORS[Math.min(si, COACH_COLORS.length - 1)];
+    const isSacked = si < stints.length - 1;
+    const coachId = matches[stint.startIdx].coach_id;
+    const hasPhoto = coachId && coachPhotos[coachId];
+
+    // Prepare a resized photo canvas for the first point
+    let photoImg = null;
+    if (hasPhoto) {
+      const c = document.createElement('canvas');
+      c.width = photoSize; c.height = photoSize;
+      const cx = c.getContext('2d');
+      cx.beginPath();
+      cx.arc(photoSize / 2, photoSize / 2, photoSize / 2, 0, Math.PI * 2);
+      cx.closePath();
+      cx.clip();
+      cx.drawImage(coachPhotos[coachId], 0, 0, photoSize, photoSize);
+      cx.strokeStyle = color;
+      cx.lineWidth = 2;
+      cx.stroke();
+      photoImg = c;
+    }
+
+    // Mark last point of sacked coaches in red, first point with photo
+    const ptBg = data.map((v, i) => (isSacked && i === stint.endIdx) ? sackColor : surface);
+    const ptBorder = data.map((v, i) => (isSacked && i === stint.endIdx) ? sackColor : color);
+    const ptRadius = data.map((v, i) => {
+      if (hasPhoto && i === stint.startIdx) return photoSize / 2;
+      if (isSacked && i === stint.endIdx) return isLarge ? 5 : 3.5;
+      return isLarge ? 3.5 : 2.5;
+    });
+    const ptStyle = data.map((v, i) => (hasPhoto && i === stint.startIdx) ? photoImg : 'circle');
+
+    datasets.push({
+      label: stint.name,
+      data,
+      borderColor: color,
+      borderWidth: isLarge ? 2.5 : 2,
+      pointRadius: ptRadius,
+      pointStyle: ptStyle,
+      pointBackgroundColor: ptBg,
+      pointBorderColor: ptBorder,
+      pointBorderWidth: isLarge ? 1.5 : 1,
+      pointHoverRadius: isLarge ? 6 : 4,
+      pointHoverBackgroundColor: color,
+      pointHoverBorderColor: surface,
+      pointHoverBorderWidth: 2,
+      pointHitRadius: 12,
+      tension: 0.15,
+      spanGaps: false,
+      fill: false,
+      clip: false,
+    });
+  });
+
+  // League average line
+  if (leagueAvg && leagueAvg.length > 0) {
+    const avgData = matches.map((m, i) => leagueAvg[i] != null ? leagueAvg[i] : null);
+    datasets.push({
+      label: 'League avg',
+      data: avgData,
+      borderColor: 'rgba(0,0,0,0.25)',
+      borderWidth: isLarge ? 1.5 : 1,
+      borderDash: [2, 2],
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      pointHitRadius: 0,
+      fill: false,
+    });
+  }
+
+  // Zone reference lines
+  ZONE_DEFS.forEach(z => {
+    const val = z.fixed || zones[z.key];
+    if (val) {
+      datasets.push({
+        label: z.label,
+        data: new Array(matches.length).fill(val),
+        borderColor: z.key === 'danger' ? z.color + '88' : z.color + '55',
+        borderWidth: z.key === 'danger' ? 1.5 : 1,
+        borderDash: z.key === 'danger' ? [6, 3] : [4, 3],
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        pointHitRadius: 0,
+        fill: z.key === 'danger' ? { target: { value: 0 }, above: 'rgba(217,64,64,0.06)' } : false,
+        hidden: false,
+      });
+    }
+  });
+
+  // Vertical line plugin for coach changes
+  const coachChangeLines = [];
+  stints.forEach((stint, si) => {
+    if (si > 0) {
+      coachChangeLines.push(stint.startIdx);
+    }
+  });
+
+  const coachChangePlugin = {
+    id: 'coachChangeLines',
+    afterDraw(chart) {
+      const { ctx, chartArea, scales: { x } } = chart;
+      if (!chartArea) return;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      coachChangeLines.forEach(idx => {
+        const xPos = x.getPixelForValue(idx);
+        if (xPos >= chartArea.left && xPos <= chartArea.right) {
+          ctx.beginPath();
+          ctx.moveTo(xPos, chartArea.top);
+          ctx.lineTo(xPos, chartArea.bottom);
+          ctx.stroke();
+        }
+      });
+      ctx.restore();
+    },
+  };
+
+  const ctx = canvas.getContext('2d');
+  return new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    plugins: [coachChangePlugin],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: photoSize + 2, bottom: photoSize + 2 } },
+      animation: { duration: 300 },
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          enabled: isLarge,
+          backgroundColor: '#ffffff',
+          titleColor: '#1a1d26',
+          bodyColor: '#5a6178',
+          borderColor: 'rgba(0,0,0,0.1)',
+          borderWidth: 1,
+          padding: 10,
+          cornerRadius: 4,
+          titleFont: { size: 12, weight: '600' },
+          bodyFont: { size: 11 },
+          usePointStyle: true,
+          filter: item => !ZONE_DEFS.some(z => z.label === item.dataset.label),
+          callbacks: {
+            title(items) {
+              if (!items.length) return '';
+              const idx = items[0].dataIndex;
+              const m = matches[idx];
+              let t = `Matchday ${m.matchday}`;
+              if (m.match_date) t += ` · ${m.match_date}`;
+              return t;
+            },
+            label(item) {
+              const idx = item.dataIndex;
+              const m = matches[idx];
+              const coach = item.dataset.label;
+              const pct = item.parsed.y;
+              if (pct === null) return null;
+              let line = `${coach}: ${pct}%`;
+              if (m.result) line += ` (${m.result} ${m.goals_for}-${m.goals_against})`;
+              return line;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          display: true,
+          title: { display: isLarge, text: 'Matchday', color: tickColor, font: { size: 11 } },
+          ticks: {
+            color: tickColor,
+            font: { size: isLarge ? 10 : 8 },
+            maxTicksLimit: isLarge ? 20 : 6,
+          },
+          grid: { color: gridColor, lineWidth: 1 },
+          border: { color: gridColor },
+        },
+        y: {
+          min: -4,
+          max: 104,
+          display: true,
+          title: { display: isLarge, text: 'Points %', color: tickColor, font: { size: 11 } },
+          afterBuildTicks: axis => {
+            const step = isLarge ? 10 : 25;
+            const ticks = [];
+            for (let v = 0; v <= 100; v += step) ticks.push({ value: v });
+            axis.ticks = ticks;
+          },
+          ticks: {
+            color: tickColor,
+            font: { size: isLarge ? 10 : 8 },
+            callback: v => v + '%',
+          },
+          grid: { color: gridColor, lineWidth: 1 },
+          border: { color: gridColor },
+        },
+      },
+    },
+  });
+}
+
+// ---- Modal ----
+function openModal(team, zones, leagueAvg) {
+  const modal = document.getElementById('modal');
+  const modalTitle = document.getElementById('modal-title');
+  modalTitle.innerHTML = '';
+  const mBadge = document.createElement('img');
+  mBadge.src = teamBadgeUrl(team.teamId);
+  mBadge.alt = team.name;
+  mBadge.style.cssText = 'width:28px;height:28px;object-fit:contain;vertical-align:middle;margin-right:8px';
+  mBadge.onerror = function() { this.style.display = 'none'; };
+  modalTitle.appendChild(mBadge);
+  modalTitle.appendChild(document.createTextNode(`${team.position}. ${team.name} — ${team.totalPts} pts (${team.totalPct}%)`));
+
+  // Coaches list — clickable
+  const stints = getCoachStints(team.matches);
+  const coachesList = document.getElementById('modal-coaches');
+  coachesList.innerHTML = '';
+  document.getElementById('coach-stats-panel').style.display = 'none';
+
+  const comp = document.getElementById('sel-competition').value;
+  const season = document.getElementById('sel-season').value;
+
+  stints.forEach((s, i) => {
+    const tag = document.createElement('div');
+    tag.className = 'modal-coach-tag';
+    const dot = document.createElement('span');
+    dot.className = 'coach-dot';
+    dot.style.background = COACH_COLORS[Math.min(i, COACH_COLORS.length - 1)];
+    tag.appendChild(dot);
+    const fromMd = team.matches[s.startIdx].matchday;
+    const toMd = team.matches[s.endIdx].matchday;
+    tag.appendChild(document.createTextNode(`${s.name} (MD${fromMd}-MD${toMd})`));
+
+    const coachId = team.matches[s.startIdx].coach_id;
+    tag.addEventListener('click', () => {
+      coachesList.querySelectorAll('.modal-coach-tag').forEach(t => t.classList.remove('active'));
+      tag.classList.add('active');
+      loadCoachStats(comp, season, team.teamId, coachId, s.name, COACH_COLORS[Math.min(i, COACH_COLORS.length - 1)]);
+    });
+
+    coachesList.appendChild(tag);
+  });
+
+  // Build chart
+  if (modalChart) modalChart.destroy();
+  const canvas = document.getElementById('modal-canvas');
+  modalChart = buildChart(canvas, team, zones, true, leagueAvg);
+
+  modal.classList.add('open');
+  modal.querySelector('.modal-close').focus();
+}
+
+async function loadCoachStats(competition, season, teamId, coachId, coachName, color) {
+  const panel = document.getElementById('coach-stats-panel');
+  panel.style.display = 'block';
+  panel.innerHTML = '<div style="text-align:center;padding:0.5rem;color:var(--text-muted);font-size:0.8rem">Loading stats...</div>';
+
+  try {
+    const data = await api(`/api/coach_stats?competition=${encodeURIComponent(competition)}&season=${encodeURIComponent(season)}&team_id=${encodeURIComponent(teamId)}&coach_id=${encodeURIComponent(coachId)}`);
+
+    const fmt = (label) => {
+      if (label === 'top_formation' && data.top_formation) {
+        const f = data.top_formation;
+        return f.length >= 3 ? f.split('').join('-') : f;
+      }
+      return null;
+    };
+
+    // Fetch coach history across all seasons
+    const history = await api(`/api/coach_history?coach_id=${encodeURIComponent(coachId)}`);
+
+    const formation = fmt('top_formation');
+
+    let historyHtml = '';
+    if (history.length > 1 || (history.length === 1 && (history[0].season !== season || history[0].competition !== competition))) {
+      historyHtml = `
+        <div class="coach-history">
+          <div class="history-title">Historial completo</div>
+          <table class="history-table">
+            <thead><tr><th>Season</th><th>Team</th><th>MP</th><th>W</th><th>D</th><th>L</th><th>Pts</th><th>%</th></tr></thead>
+            <tbody>
+              ${history.map(h => {
+                const isCurrent = h.season === season && h.competition === competition;
+                const badgeUrl = teamBadgeUrl(h.team_id);
+                return `<tr${isCurrent ? ' class="current-stint"' : ''}>
+                  <td>${h.season}</td>
+                  <td class="history-team team-link" data-team-id="${h.team_id}" data-team-name="${h.team_name}"><img src="${badgeUrl}" width="16" height="16" style="vertical-align:middle;margin-right:4px">${h.team_name}</td>
+                  <td>${h.matches}</td><td>${h.wins}</td><td>${h.draws}</td><td>${h.losses}</td>
+                  <td><b>${h.points}</b></td><td><b>${h.points_pct}%</b></td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    panel.innerHTML = `
+      <div class="stats-header">
+        <span class="coach-dot" style="background:${color}"></span>
+        ${coachName}
+      </div>
+      <div class="coach-stats-grid">
+        <div class="coach-stat-item"><div class="stat-val">${data.matches}</div><div class="stat-lbl">Matches</div></div>
+        <div class="coach-stat-item"><div class="stat-val">${data.wins}</div><div class="stat-lbl">Wins</div></div>
+        <div class="coach-stat-item"><div class="stat-val">${data.draws}</div><div class="stat-lbl">Draws</div></div>
+        <div class="coach-stat-item"><div class="stat-val">${data.losses}</div><div class="stat-lbl">Losses</div></div>
+        <div class="coach-stat-item"><div class="stat-val">${data.goals_for}</div><div class="stat-lbl">GF</div></div>
+        <div class="coach-stat-item"><div class="stat-val">${data.goals_against}</div><div class="stat-lbl">GC</div></div>
+        <div class="coach-stat-item"><div class="stat-val">${data.goal_diff > 0 ? '+' : ''}${data.goal_diff}</div><div class="stat-lbl">Goal diff</div></div>
+        <div class="coach-stat-item highlight"><div class="stat-val">${data.points}</div><div class="stat-lbl">Points</div></div>
+        <div class="coach-stat-item highlight"><div class="stat-val">${data.points_pct}%</div><div class="stat-lbl">% Points</div></div>
+        <div class="coach-stat-item"><div class="stat-val">${data.win_streak}</div><div class="stat-lbl">Win streak</div></div>
+        <div class="coach-stat-item"><div class="stat-val">${data.unbeaten_streak}</div><div class="stat-lbl">Unbeaten streak</div></div>
+        <div class="coach-stat-item"><div class="stat-val">${data.winless_streak}</div><div class="stat-lbl">Winless streak</div></div>
+        ${data.avg_possession != null ? `<div class="coach-stat-item"><div class="stat-val">${data.avg_possession}%</div><div class="stat-lbl">Avg possession</div></div>` : ''}
+        ${formation ? `<div class="coach-stat-item"><div class="stat-val">${formation}</div><div class="stat-lbl">Formation</div></div>` : ''}
+      </div>
+      ${historyHtml}
+    `;
+    panel.querySelectorAll('.team-link').forEach(td => {
+      td.addEventListener('click', (e) => { e.stopPropagation(); closeModal(); openTeamModal(td.dataset.teamId, td.dataset.teamName); });
+    });
+  } catch (err) {
+    panel.innerHTML = `<div style="color:var(--text-muted);font-size:0.8rem">Error: ${err.message}</div>`;
+  }
+}
+
+function closeModal() {
+  const modal = document.getElementById('modal');
+  modal.classList.remove('open');
+  if (modalChart) { modalChart.destroy(); modalChart = null; }
+}
+
+// ---- Changes table ----
+function renderCoachRanking(progression) {
+  const section = document.getElementById('ranking-section');
+  const tbody = document.getElementById('ranking-tbody');
+  tbody.innerHTML = '';
+
+  const maxMd = Math.max(...progression.map(r => r.matchday));
+
+  // Group by coach_id + team_id, keeping all match results in order
+  const coachMap = new Map();
+  progression.forEach(r => {
+    const key = `${r.coach_id}__${r.team_id}`;
+    if (!coachMap.has(key)) coachMap.set(key, { coachId: r.coach_id, name: r.coach_name, teamName: r.team_name, teamId: r.team_id, results: [] });
+    coachMap.get(key).results.push({ result: r.result, matchday: r.matchday });
+  });
+
+  const allCoaches = [...coachMap.values()];
+  let lastN = maxMd;
+  let sortKey = 'pct';
+  let sortDir = 'desc';
+
+  // Sort header click handlers
+  const headers = section.querySelectorAll('th.sortable');
+  headers.forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.sort;
+      if (sortKey === key) {
+        sortDir = sortDir === 'desc' ? 'asc' : 'desc';
+      } else {
+        sortKey = key;
+        sortDir = 'desc';
+      }
+      headers.forEach(h => h.classList.remove('asc', 'desc', 'active'));
+      th.classList.add(sortDir, 'active');
+      render();
+    });
+  });
+
+  function render() {
+    tbody.innerHTML = '';
+    const minMd = maxMd - lastN + 1;
+    const ranked = allCoaches.map(c => {
+      const slice = c.results.filter(r => r.matchday >= minMd);
+      const m = slice.length;
+      const w = slice.filter(r => r.result === 'W').length;
+      const d = slice.filter(r => r.result === 'D').length;
+      const l = slice.filter(r => r.result === 'L').length;
+      const pts = w * 3 + d;
+      const pct = m > 0 ? Math.round((pts / (m * 3)) * 10000) / 100 : 0;
+      return { ...c, matches: m, wins: w, draws: d, losses: l, pts, pct };
+    }).filter(c => c.matches > 0).sort((a, b) => {
+      const mul = sortDir === 'desc' ? 1 : -1;
+      const diff = b[sortKey] - a[sortKey];
+      if (diff !== 0) return diff * mul;
+      return (b.pct - a.pct) || (b.pts - a.pts);
+    });
+
+    if (!ranked.length) { section.style.display = 'none'; return; }
+    ranked.forEach((c, i) => {
+      const tr = document.createElement('tr');
+      const last5 = c.results.filter(r => r.matchday >= minMd).slice(-5);
+      const formHtml = last5.map(r => {
+        const cls = r.result === 'W' ? 'form-w' : r.result === 'D' ? 'form-d' : 'form-l';
+        return `<span class="form-dot-sm ${cls}">${r.result}</span>`;
+      }).join('');
+      const coachPhoto = coachPhotoUrls[c.coachId] || COACH_PLACEHOLDER;
+      tr.innerHTML = `
+        <td>${i + 1}</td>
+        <td><span style="display:inline-flex;align-items:center;gap:8px"><img src="${coachPhoto}" width="28" height="28" style="border-radius:50%;object-fit:cover;object-position:center 20%;flex-shrink:0;border:1.5px solid rgba(255,255,255,0.15)" onerror="this.src='${COACH_PLACEHOLDER}'"><b>${c.name || '?'}</b></span></td>
+        <td class="team-link" data-team-id="${c.teamId}" data-team-name="${c.teamName}"><img class="team-badge-inline" src="${teamBadgeUrl(c.teamId)}" onerror="this.style.display='none'">${c.teamName}</td>
+        <td>${c.matches}</td><td>${c.wins}</td><td>${c.draws}</td><td>${c.losses}</td>
+        <td>${c.pts}</td><td>${c.pct}%</td>
+        <td class="form-cell">${formHtml}</td>`;
+      tr.style.cursor = 'pointer';
+      tr.addEventListener('click', (e) => {
+        if (e.target.closest('.team-link')) {
+          openTeamModal(c.teamId, c.teamName);
+        } else {
+          openCoachModal(c.coachId, c.name);
+        }
+      });
+      tbody.appendChild(tr);
+    });
+    section.style.display = 'block';
+  }
+
+  // Filter UI — always recreate to avoid stale closures
+  let filterDiv = section.querySelector('.min-filter');
+  if (filterDiv) filterDiv.remove();
+  filterDiv = document.createElement('div');
+  filterDiv.className = 'min-filter';
+  filterDiv.innerHTML = `Last <input type="range" min="1" max="${maxMd}" value="${maxMd}" style="width:140px"> <span class="range-val">${maxMd}</span> matches`;
+  section.querySelector('h2').after(filterDiv);
+  const input = filterDiv.querySelector('input');
+  const valSpan = filterDiv.querySelector('.range-val');
+  input.addEventListener('input', e => {
+    lastN = parseInt(e.target.value) || maxMd;
+    valSpan.textContent = lastN;
+    render();
+  });
+  render();
+}
+
+function renderSackings(coachChanges, progression) {
+  const section = document.getElementById('sackings-section');
+  const tbody = document.getElementById('sackings-tbody');
+  tbody.innerHTML = '';
+
+  const sackings = [];
+  coachChanges.filter(t => t.total_coaches > 1).forEach(t => {
+    for (let i = 0; i < t.coaches.length - 1; i++) {
+      const fired = t.coaches[i];
+      const replacement = t.coaches[i + 1];
+      sackings.push({
+        teamId: t.team_id,
+        teamName: t.team_name,
+        firedCoach: fired.coach_name,
+        matchday: fired.to_matchday,
+        firedPct: fired.points_pct,
+        replacement: replacement.coach_name,
+        replacementPct: replacement.points_pct,
+      });
+    }
+  });
+
+  if (!sackings.length) { section.style.display = 'none'; return; }
+
+  sackings.sort((a, b) => a.teamName.localeCompare(b.teamName) || a.matchday - b.matchday);
+
+  sackings.forEach(s => {
+    const tr = document.createElement('tr');
+    const dangerClass = s.firedPct <= 33 ? 'pct-danger' : '';
+    const okClass = s.replacementPct > s.firedPct ? 'pct-ok' : s.replacementPct < s.firedPct ? 'pct-danger' : '';
+    tr.innerHTML = `
+      <td class="team-link" style="cursor:pointer"><img class="team-badge-inline" src="${teamBadgeUrl(s.teamId)}" onerror="this.style.display='none'"><b>${s.teamName}</b></td>
+      <td>${s.firedCoach}</td>
+      <td>MD${s.matchday}</td>
+      <td class="${dangerClass}">${s.firedPct}%</td>
+      <td>${s.replacement}</td>
+      <td class="${okClass}">${s.replacementPct}%</td>`;
+    tr.querySelector('.team-link').addEventListener('click', () => openTeamModal(s.teamId, s.teamName));
+    tbody.appendChild(tr);
+  });
+  section.style.display = 'block';
+}
+
+// ---- Coach search ----
+(function() {
+  const input = document.getElementById('coach-search');
+  const results = document.getElementById('coach-search-results');
+  let debounce = null;
+
+  input.addEventListener('input', () => {
+    clearTimeout(debounce);
+    const q = input.value.trim();
+    if (q.length < 2) { results.classList.remove('open'); results.innerHTML = ''; return; }
+    debounce = setTimeout(async () => {
+      try {
+        const data = await api(`/api/search_coaches?q=${encodeURIComponent(q)}`);
+        if (!data.length) {
+          results.innerHTML = '<div class="search-empty">No results</div>';
+        } else {
+          results.innerHTML = data.map(c =>
+            `<div class="search-item" data-id="${c.coach_id}" data-name="${c.name}">${c.name}</div>`
+          ).join('');
+        }
+        results.classList.add('open');
+      } catch (e) {
+        results.innerHTML = '<div class="search-empty">Search error</div>';
+        results.classList.add('open');
+      }
+    }, 300);
+  });
+
+  results.addEventListener('click', e => {
+    const item = e.target.closest('.search-item');
+    if (!item) return;
+    results.classList.remove('open');
+    input.value = '';
+    openCoachModal(item.dataset.id, item.dataset.name);
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-wrap')) results.classList.remove('open');
+  });
+})();
+
+// ---- Team search ----
+(function() {
+  const input = document.getElementById('team-search');
+  const results = document.getElementById('team-search-results');
+  let debounce = null;
+
+  input.addEventListener('input', () => {
+    clearTimeout(debounce);
+    const q = input.value.trim();
+    if (q.length < 2) { results.classList.remove('open'); results.innerHTML = ''; return; }
+    debounce = setTimeout(async () => {
+      try {
+        const data = await api(`/api/search_teams?q=${encodeURIComponent(q)}`);
+        if (!data.length) {
+          results.innerHTML = '<div class="search-empty">No results</div>';
+        } else {
+          results.innerHTML = data.map(t =>
+            `<div class="search-item" data-id="${t.team_id}" data-name="${t.team_name}">
+              <img src="/api/team_badge?team=${encodeURIComponent(t.team_name)}" width="18" height="18"
+                   style="vertical-align:middle;margin-right:6px;border-radius:2px"
+                   onerror="this.style.display='none'">${t.team_name}
+            </div>`
+          ).join('');
+        }
+        results.classList.add('open');
+      } catch (e) {
+        results.innerHTML = '<div class="search-empty">Search error</div>';
+        results.classList.add('open');
+      }
+    }, 300);
+  });
+
+  results.addEventListener('click', e => {
+    const item = e.target.closest('.search-item');
+    if (!item) return;
+    results.classList.remove('open');
+    input.value = '';
+    openTeamModal(item.dataset.id, item.dataset.name);
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-wrap')) results.classList.remove('open');
+  });
+})();
+
+// ---- Coach history modal ----
+async function openCoachModal(coachId, coachName) {
+  const modal = document.getElementById('coach-modal');
+  const title = document.getElementById('coach-modal-title');
+  const body = document.getElementById('coach-modal-body');
+  const photoUrl = coachPhotoUrls[coachId] || COACH_PLACEHOLDER;
+  title.innerHTML = `<img src="${photoUrl}" width="40" height="40" style="border-radius:50%;vertical-align:middle;margin-right:8px;object-fit:cover;object-position:center 20%" onerror="this.src='${COACH_PLACEHOLDER}'">${coachName || '?'}`;
+  body.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-muted)">Loading history...</div>';
+  modal.classList.add('open');
+
+  try {
+    const history = await api(`/api/coach_history?coach_id=${encodeURIComponent(coachId)}`);
+    if (!history.length) {
+      body.innerHTML = '<div style="color:var(--text-muted)">No data</div>';
+      return;
+    }
+
+    let totalM = 0, totalW = 0, totalD = 0, totalL = 0, totalGF = 0, totalGA = 0;
+    history.forEach(h => { totalM += h.matches; totalW += h.wins; totalD += h.draws; totalL += h.losses; totalGF += h.gf; totalGA += h.ga; });
+    const totalPts = totalW * 3 + totalD;
+    const totalPct = totalM > 0 ? Math.round((totalPts / (totalM * 3)) * 10000) / 100 : 0;
+
+    body.innerHTML = `
+      <div class="coach-stats-grid" style="margin-bottom:1rem">
+        <div class="coach-stat-item"><div class="stat-val">${totalM}</div><div class="stat-lbl">Matches</div></div>
+        <div class="coach-stat-item"><div class="stat-val">${totalW}</div><div class="stat-lbl">Wins</div></div>
+        <div class="coach-stat-item"><div class="stat-val">${totalD}</div><div class="stat-lbl">Draws</div></div>
+        <div class="coach-stat-item"><div class="stat-val">${totalL}</div><div class="stat-lbl">Losses</div></div>
+        <div class="coach-stat-item"><div class="stat-val">${totalGF}</div><div class="stat-lbl">GF</div></div>
+        <div class="coach-stat-item"><div class="stat-val">${totalGA}</div><div class="stat-lbl">GC</div></div>
+        <div class="coach-stat-item highlight"><div class="stat-val">${totalPts}</div><div class="stat-lbl">Points</div></div>
+        <div class="coach-stat-item highlight"><div class="stat-val">${totalPct}%</div><div class="stat-lbl">% Points</div></div>
+      </div>
+      <table class="history-table" style="width:100%">
+        <thead><tr><th>Season</th><th>League</th><th>Team</th><th>MP</th><th>W</th><th>D</th><th>L</th><th>Pts</th><th>%</th></tr></thead>
+        <tbody>
+          ${history.map(h => `<tr>
+            <td>${h.season}</td>
+            <td style="font-size:0.75rem">${h.competition}</td>
+            <td class="history-team team-link" data-team-id="${h.team_id}" data-team-name="${h.team_name}"><img src="${teamBadgeUrl(h.team_id)}" width="16" height="16" style="vertical-align:middle;margin-right:4px" onerror="this.style.display='none'">${h.team_name}</td>
+            <td>${h.matches}</td><td>${h.wins}</td><td>${h.draws}</td><td>${h.losses}</td>
+            <td><b>${h.points}</b></td><td><b>${h.points_pct}%</b></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+    body.querySelectorAll('.team-link').forEach(td => {
+      td.addEventListener('click', (e) => { e.stopPropagation(); closeCoachModal(); openTeamModal(td.dataset.teamId, td.dataset.teamName); });
+    });
+  } catch (err) {
+    body.innerHTML = `<div style="color:var(--text-muted)">Error: ${err.message}</div>`;
+  }
+}
+
+function closeCoachModal() {
+  document.getElementById('coach-modal').classList.remove('open');
+}
+
+document.getElementById('coach-modal').addEventListener('click', e => {
+  if (e.target.id === 'coach-modal') closeCoachModal();
+});
+
+// ---- Team Modal ----
+async function openTeamModal(teamId, teamName) {
+  const modal = document.getElementById('team-modal');
+  const title = document.getElementById('team-modal-title');
+  const body = document.getElementById('team-modal-body');
+  title.innerHTML = `<img src="${teamBadgeUrl(teamId)}" width="28" height="28" style="vertical-align:middle;margin-right:8px" onerror="this.style.display='none'">${teamName || '?'}`;
+  body.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-muted)">Loading history...</div>';
+  modal.classList.add('open');
+
+  try {
+    const history = await api(`/api/team_history?team_id=${encodeURIComponent(teamId)}`);
+    if (!history.length) {
+      body.innerHTML = '<div style="color:var(--text-muted)">No data</div>';
+      return;
+    }
+
+    // Group by season/competition
+    const seasons = new Map();
+    history.forEach(h => {
+      const key = `${h.season} — ${h.competition}`;
+      if (!seasons.has(key)) seasons.set(key, []);
+      seasons.get(key).push(h);
+    });
+
+    // Global stats
+    let totalStints = history.length;
+    let totalSacked = history.filter(h => h.sacked).length;
+    let totalMatches = history.reduce((s, h) => s + h.matches, 0);
+    const avgPctAtSacking = totalSacked > 0
+      ? Math.round(history.filter(h => h.sacked).reduce((s, h) => s + h.points_pct, 0) / totalSacked * 100) / 100
+      : 0;
+
+    let html = `
+      <div class="coach-stats-grid" style="margin-bottom:1rem">
+        <div class="coach-stat-item"><div class="stat-val">${totalStints}</div><div class="stat-lbl">Coaches</div></div>
+        <div class="coach-stat-item"><div class="stat-val">${totalSacked}</div><div class="stat-lbl">Sackings</div></div>
+        <div class="coach-stat-item"><div class="stat-val">${totalMatches}</div><div class="stat-lbl">Matches</div></div>
+        <div class="coach-stat-item highlight"><div class="stat-val">${avgPctAtSacking}%</div><div class="stat-lbl">Avg sacking %</div></div>
+      </div>`;
+
+    for (const [seasonKey, stints] of seasons) {
+      html += `<div style="margin-top:0.75rem"><strong style="font-size:0.85rem;color:var(--text-muted)">${seasonKey}</strong></div>`;
+      html += `<table class="history-table" style="width:100%;margin-top:0.25rem">
+        <thead><tr><th>Coach</th><th>Matchdays</th><th>MP</th><th>W</th><th>D</th><th>L</th><th>Pts</th><th>%</th><th></th></tr></thead>
+        <tbody>`;
+      stints.forEach(s => {
+        const pctClass = s.sacked ? (s.points_pct <= 33 ? 'pct-danger' : '') : '';
+        const sackIcon = s.sacked ? '<span style="color:#d94040" title="Sacked">✕</span>' : '<span style="color:var(--text-muted)" title="In charge">—</span>';
+        const coachPhoto = coachPhotoUrls[s.coach_id] || COACH_PLACEHOLDER;
+        html += `<tr style="cursor:pointer" class="team-stint-row" data-coach-id="${s.coach_id}" data-coach-name="${s.coach_name}">
+          <td><img src="${coachPhoto}" width="20" height="20" style="border-radius:50%;vertical-align:middle;margin-right:4px;object-fit:cover" onerror="this.src='${COACH_PLACEHOLDER}'">${s.coach_name}</td>
+          <td>MD${s.from_matchday}–MD${s.to_matchday}</td>
+          <td>${s.matches}</td><td>${s.wins}</td><td>${s.draws}</td><td>${s.losses}</td>
+          <td><b>${s.points}</b></td><td class="${pctClass}"><b>${s.points_pct}%</b></td>
+          <td>${sackIcon}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+    }
+
+    body.innerHTML = html;
+
+    // Make coach rows clickable
+    body.querySelectorAll('.team-stint-row').forEach(row => {
+      row.addEventListener('click', () => {
+        closeTeamModal();
+        openCoachModal(row.dataset.coachId, row.dataset.coachName);
+      });
+    });
+
+  } catch (err) {
+    body.innerHTML = `<div style="color:var(--text-muted)">Error: ${err.message}</div>`;
+  }
+}
+
+function closeTeamModal() {
+  document.getElementById('team-modal').classList.remove('open');
+}
+
+document.getElementById('team-modal').addEventListener('click', e => {
+  if (e.target.id === 'team-modal') closeTeamModal();
+});
+
+// ---- Boot ----
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

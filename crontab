@@ -1,0 +1,3 @@
+# Update current season data every 4 hours
+0 */4 * * * cd /app && python fetch_data.py --season "2026/2027" >> /var/log/coachtracker-cron.log 2>&1
+30 */4 * * * cd /app && python fetch_data.py --season "2026" >> /var/log/coachtracker-cron.log 2>&1

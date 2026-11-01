@@ -1,0 +1,10 @@
+services:
+  coachtracker:
+    build: .
+    container_name: coachtracker
+    restart: unless-stopped
+    ports:
+      - "5060:5050"
+    volumes:
+      - ./data:/app/data
+      - ./static/coaches:/app/static/coaches
