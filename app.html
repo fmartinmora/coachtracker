@@ -819,15 +819,12 @@ const COACH_PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/20
 async function loadCoachPhotos() {
   try {
     coachPhotoUrls = await api('/api/coach_photos');
-    const promises = Object.entries(coachPhotoUrls).map(([id, url]) => {
-      return new Promise(resolve => {
-        const img = new Image();
-        img.onload = () => { coachPhotos[id] = img; resolve(); };
-        img.onerror = () => resolve();
-        img.src = url;
-      });
+    // Preload images in background without blocking — they'll be ready when charts render
+    Object.entries(coachPhotoUrls).forEach(([id, url]) => {
+      const img = new Image();
+      img.onload = () => { coachPhotos[id] = img; };
+      img.src = url;
     });
-    await Promise.all(promises);
   } catch (e) { /* no photos available */ }
 }
 
